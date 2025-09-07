@@ -21,5 +21,6 @@ pycharm-interpreter.sh
 python
 Session.vim
 Vagrantfile
+venv
 
 __MACOSX/
