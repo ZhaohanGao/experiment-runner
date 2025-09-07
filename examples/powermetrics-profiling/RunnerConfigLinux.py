@@ -18,7 +18,7 @@ class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
 
     # ================================ USER SPECIFIC CONFIG ================================
-    name:                       str             = "process_specific_experiment"
+    name:                       str             = f"process_specific_experiment_{__import__('datetime').datetime.now().strftime('%Y%m%d%H%M%S')}"
     results_output_path:        Path            = ROOT_DIR / 'experiments'
     operation_type:             OperationType   = OperationType.AUTO
     time_between_runs_in_ms:    int             = 1000
@@ -48,7 +48,7 @@ class RunnerConfig:
         factor1 = FactorModel("test_factor", [1, 2, 3, 4, 5])
         self.run_table_model = RunTableModel(
             factors=[factor1],
-            data_columns=["joules", "avg_cpu", "avg_gpu", "cpu_seconds"]
+            data_columns=["joules", "avg_cpu", "avg_gpu"]
         )
         return self.run_table_model
 
@@ -74,7 +74,9 @@ class RunnerConfig:
         workload_command = [
             'taskset', '-c', cpu_to_use,
             'perf', 'stat', '-e', 'power/energy-pkg/',
-            'python', 'heavy_work.py'
+            # 'python', 'efficient.py'
+            # 'python', 'bucket_sort.py'
+            'python', 'bubble_sort.py'
         ]
         self.workload_process = subprocess.Popen(
             workload_command,
