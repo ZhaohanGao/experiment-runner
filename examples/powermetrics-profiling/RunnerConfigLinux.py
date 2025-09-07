@@ -18,8 +18,8 @@ class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
 
     # ================================ USER SPECIFIC CONFIG ================================
-    name:                       str             = "new_runner_experiment_linux"
-    results_output_path:        Path             = ROOT_DIR / 'experiments'
+    name:                       str             = "process_specific_experiment"
+    results_output_path:        Path            = ROOT_DIR / 'experiments'
     operation_type:             OperationType   = OperationType.AUTO
     time_between_runs_in_ms:    int             = 1000
 
@@ -37,18 +37,18 @@ class RunnerConfig:
         ])
         self.run_table_model = None
         
-        ## MOD: Added process holders for all measurement tools
         self.workload_process = None
         self.cpu_process = None
         self.gpu_process = None
         
-        output.console_log("Custom config for Linux (using perf, mpstat, nvidia-smi) loaded")
+        ## MOD: Updated log message for new tools
+        output.console_log("Custom config for Linux (using perf, pidstat, nvtop) loaded")
 
     def create_run_table_model(self) -> RunTableModel:
-        factor1 = FactorModel("test_factor", [1, 2])
+        factor1 = FactorModel("test_factor", [1, 2, 3, 4, 5])
         self.run_table_model = RunTableModel(
             factors=[factor1],
-            data_columns=["joules", "avg_cpu", "avg_gpu"]
+            data_columns=["joules", "avg_cpu", "avg_gpu", "cpu_seconds"]
         )
         return self.run_table_model
 
@@ -62,38 +62,18 @@ class RunnerConfig:
         pass
 
     def start_measurement(self, context: RunnerContext) -> None:
-        ## MOD: This function is now responsible for starting all monitoring tools
-        output.console_log("Starting measurements...")
-
-        # Define paths for all log files
+        ## MOD: Added 'taskset' to pin the workload to a specific CPU core (e.g., core 7).
+        output.console_log("Starting workload (heavy_work.py) wrapped in perf and pinned to a CPU core...")
+        
         perf_log_path = context.run_dir / "perf_output.txt"
-        cpu_log_path = context.run_dir / "cpu_usage.txt"
-        gpu_log_path = context.run_dir / "gpu_usage.txt"
-
-        # 1. Start CPU monitoring (mpstat) in the background
-        # Polls every 1 second (-P ALL for all cores)
-        cpu_command = ['mpstat', '-P', 'ALL', '1']
-        self.cpu_process = subprocess.Popen(
-            cpu_command,
-            stdout=open(cpu_log_path, 'w'),
-            stderr=subprocess.STDOUT
-        )
-
-        # 2. Start GPU monitoring (nvidia-smi) in the background
-        # Polls GPU utilization every 1 second
-        gpu_command = [
-            'rocm-smi',
-            '--showuse', '--csv' 
-        ]
-        self.gpu_process = subprocess.Popen(
-            gpu_command,
-            stdout=open(gpu_log_path, 'w'),
-            stderr=subprocess.STDOUT
-        )
-
-        # 3. Start the main workload wrapped with perf
+        
+        # We will pin the command to CPU core 7
+        cpu_to_use = '7'
+        
+        # taskset -c <core> your_command...
         workload_command = [
-            'perf', 'stat', '-a', '-e', 'power/energy-pkg/',
+            'taskset', '-c', cpu_to_use,
+            'perf', 'stat', '-e', 'power/energy-pkg/',
             'python', 'heavy_work.py'
         ]
         self.workload_process = subprocess.Popen(
@@ -103,18 +83,56 @@ class RunnerConfig:
         )
 
     def interact(self, context: RunnerContext) -> None:
-        ## MOD: We only wait for the main workload to finish.
-        output.console_log("Waiting for workload (heavy_work.py) to complete...")
-        if self.workload_process:
-            self.workload_process.wait()
+        ## MOD: This function now finds the child process PID to monitor.
+        if not self.workload_process:
+            output.console_log("ERROR: Workload process not started.")
+            return
+
+        parent_pid = self.workload_process.pid
+        child_pid = None
+
+        # Give the child process a moment to spawn
+        time.sleep(0.2)
+
+        try:
+            # Use pgrep to find the child PID of the 'perf' process
+            pgrep_cmd = ['pgrep', '-P', str(parent_pid)]
+            result = subprocess.run(pgrep_cmd, capture_output=True, text=True, check=True)
+            child_pid_str = result.stdout.strip()
+            if not child_pid_str:
+                raise ValueError("pgrep did not find a child process.")
+            child_pid = int(child_pid_str)
+            output.console_log(f"Found perf parent PID: {parent_pid}, monitoring python child PID: {child_pid}...")
+        except (subprocess.CalledProcessError, ValueError, FileNotFoundError) as e:
+            output.console_log(f"ERROR: Could not find child process for PID {parent_pid}. Error: {e}")
+            output.console_log("Workload may have finished too quickly or failed to start.")
+            self.workload_process.wait() # Still wait for the main process to clean up
+            return
+
+        # --- Start monitoring using the child_pid ---
+        cpu_log_path = context.run_dir / "cpu_usage.txt"
+        gpu_log_path = context.run_dir / "gpu_usage.txt"
+
+        cpu_command = ['pidstat', '-p', str(child_pid), '1']
+        self.cpu_process = subprocess.Popen(
+            cpu_command, stdout=open(cpu_log_path, 'w'), stderr=subprocess.STDOUT
+        )
+
+        gpu_command = ['nvtop', '-b', '-p', str(child_pid), '-d', '1']
+        self.gpu_process = subprocess.Popen(
+            gpu_command, stdout=open(gpu_log_path, 'w'), stderr=subprocess.STDOUT
+        )
+
+        output.console_log("Waiting for workload to complete...")
+        self.workload_process.wait()
         output.console_log("Workload finished.")
 
     def stop_measurement(self, context: RunnerContext) -> None:
-        ## MOD: We must now explicitly stop the background monitoring tools.
+        ## This function remains the same, it correctly terminates the new processes.
         output.console_log("Stopping measurement processes...")
         if self.cpu_process:
             self.cpu_process.terminate()
-            self.cpu_process.wait() # Wait to avoid zombie processes
+            self.cpu_process.wait()
         if self.gpu_process:
             self.gpu_process.terminate()
             self.gpu_process.wait()
@@ -122,72 +140,84 @@ class RunnerConfig:
     def stop_run(self, context: RunnerContext) -> None:
         pass
 
-    ## MOD: Helper function to parse mpstat output
+    ## MOD: Rewritten to parse pidstat output
     def _parse_cpu_usage(self, file_path: Path) -> float:
         try:
             with open(file_path, 'r') as f:
-                lines = f.readlines()
+                lines = [line for line in f if line.strip()] # Read non-empty lines
 
-            idle_percentages = []
+            if not lines:
+                return 0.0
+
+            # Find the header row and the index of the '%CPU' column
+            header_line = ""
             for line in lines:
-                # Look for the 'all' CPU summary line, which contains averages
-                if 'all' in line:
-                    try:
-                        # The last column in mpstat output is %idle
-                        idle_val = float(line.split()[-1])
-                        idle_percentages.append(idle_val)
-                    except (ValueError, IndexError):
-                        continue
+                if "PID" in line and "%CPU" in line:
+                    header_line = line
+                    break
             
-            if not idle_percentages:
+            if not header_line:
+                output.console_log(f"ERROR: Could not find header row in {file_path}")
                 return -1.0
             
-            # Average CPU usage is 100 - average idle percentage
-            avg_idle = np.mean(idle_percentages)
-            return 100.0 - avg_idle
+            headers = header_line.split()
+            try:
+                cpu_column_index = headers.index("%CPU")
+            except ValueError:
+                output.console_log(f"ERROR: Could not find '%CPU' column in {file_path}")
+                return -1.0
+
+            # Parse the data lines using the found index
+            cpu_percentages = []
+            for line in lines:
+                if "PID" in line or "Average" in line:
+                    continue # Skip header/footer lines
+                
+                try:
+                    parts = line.split()
+                    cpu_val_str = parts[cpu_column_index].replace(',', '.')
+                    cpu_percentages.append(float(cpu_val_str))
+                except (ValueError, IndexError):
+                    # This will skip any malformed lines
+                    continue
+            
+            if not cpu_percentages:
+                return 0.0
+            
+            return np.mean(cpu_percentages)
         except (FileNotFoundError, Exception) as e:
-            output.console_log(f"ERROR: Could not parse CPU usage: {e}")
+            output.console_log(f"ERROR: Could not parse CPU usage with pidstat: {e}")
             return -1.0
 
-    ## MOD: Helper function to parse rocm-smi's CSV output
+    ## MOD: Rewritten to parse nvtop output
     def _parse_gpu_usage(self, file_path: Path) -> float:
         try:
             with open(file_path, 'r') as f:
-                lines = f.readlines()
+                content = f.read()
 
             utilizations = []
-            # Start loop from the second line to skip the header
-            for line in lines[1:]:
-                line = line.strip()
-                if not line:
-                    continue # Skip empty lines
+            # Regex to find lines with a PID and extract the GPU utilization percentage
+            pattern = re.compile(r'PID\s+\d+\s+\(.*\)\s+on\s+GPU\s+\d+:\s+(\d+)\s+%\s+GPU-Util')
+            
+            matches = pattern.findall(content)
+            if not matches:
+                output.console_log(f"WARNING: No GPU usage found for process in {file_path}. The process might not have used the GPU.")
+                return 0.0
 
-                try:
-                    # Split the CSV line, e.g., "0,15" -> ["0", "15"]
-                    parts = line.split(',')
-                    # The usage percentage is the second column
-                    gpu_use_percent = float(parts[1])
-                    utilizations.append(gpu_use_percent)
-                except (ValueError, IndexError):
-                    # This will skip any malformed lines in the output
-                    output.console_log(f"WARNING: Could not parse GPU usage from line: '{line}'")
-                    continue
-
-            if not utilizations:
-                return -1.0
+            for val in matches:
+                utilizations.append(float(val))
 
             return np.mean(utilizations)
         except (FileNotFoundError, Exception) as e:
-            output.console_log(f"ERROR: Could not parse GPU usage: {e}")
+            output.console_log(f"ERROR: Could not parse GPU usage with nvtop: {e}")
             return -1.0
 
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
-        ## MOD: Updated to parse all three log files
         perf_log_path = context.run_dir / "perf_output.txt"
         cpu_log_path = context.run_dir / "cpu_usage.txt"
         gpu_log_path = context.run_dir / "gpu_usage.txt"
         
-        # 1. Parse energy from perf output
+        # 1. Parse energy from perf output (remains the same)
         joules = 0.0
         try:
             with open(perf_log_path, 'r') as f:
@@ -201,7 +231,7 @@ class RunnerConfig:
         except FileNotFoundError:
             output.console_log(f"ERROR: Perf output file not found at {perf_log_path}")
 
-        # 2. Parse CPU and GPU usage using helper functions
+        # 2. Parse CPU and GPU usage using the updated helper functions
         avg_cpu = self._parse_cpu_usage(cpu_log_path)
         avg_gpu = self._parse_gpu_usage(gpu_log_path)
 
