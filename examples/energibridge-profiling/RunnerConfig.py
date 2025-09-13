@@ -122,58 +122,57 @@ class RunnerConfig:
         pass
     
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
-            """
-            Parse and process measurement data to calculate key performance metrics.
-            """
-            try:
-                csv_path = context.run_dir / "energibridge.csv"
-                
-                if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
-                    output.console_log(f"Warning: energibridge.csv is missing or empty in {context.run_dir}")
-                    return None
-
-                df = pd.read_csv(csv_path, on_bad_lines='skip')
-                df.dropna(inplace=True)
-
-                if df.empty:
-                    output.console_log(f"Warning: CSV file {csv_path} is empty after cleaning.")
-                    return None
-
-                # --- 1. Execution Time ---
-                execution_time_ns = df['Time'].iloc[-1] - df['Time'].iloc[0]
-                execution_time_s = execution_time_ns / 1_000_000_000
-
-                # --- 2. CPU Usage ---
-                cpu_usage_cols = [col for col in df.columns if 'CPU_USAGE' in col]
-                overall_avg_cpu_usage = df[cpu_usage_cols].mean().mean() if cpu_usage_cols else 0
-
-                # --- 3. Memory Usage ---
-                avg_memory_usage_bytes = df['USED_MEMORY'].mean()
-                avg_memory_usage_mb = avg_memory_usage_bytes / (1024 * 1024)
-
-                # --- 4. Energy Consumption ---
-                cpu_energy = df['CPU_ENERGY (J)'].iloc[-1] - df['CPU_ENERGY (J)'].iloc[0]
-                
-                run_data = {
-                    'execution_time_s': round(execution_time_s, 3),
-                    'cpu_usage_percent': round(overall_avg_cpu_usage, 3),
-                    'memory_usage_mb': round(avg_memory_usage_mb, 3),
-                    'cpu_energy_j': round(cpu_energy, 3)
-                }
-                
-                full_run_details = {**context.execute_run, **run_data}
-                self.all_run_data.append(full_run_details)
-                
-                return run_data
-
-            except (FileNotFoundError, IndexError, KeyError, ValueError) as e:
-                # IMPROVED LOGGING: This will now print the exact error message
-                # e.g., "KeyError: 'CPU_ENERGY (J)'"
-                output.console_log(f"❌ An error occurred while processing {csv_path}: {type(e).__name__}: {e}")
-                # For deeper debugging, you can print the available columns:
-                if 'df' in locals() and not df.empty:
-                    output.console_log(f"Available columns are: {list(df.columns)}")
+        """
+        Parse and process measurement data to calculate key performance metrics.
+        """
+        try:
+            csv_path = context.run_dir / "energibridge.csv"
+            
+            if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
+                output.console_log(f"Warning: energibridge.csv is missing or empty in {context.run_dir}")
                 return None
+
+            df = pd.read_csv(csv_path, on_bad_lines='skip')
+            df.dropna(inplace=True)
+
+            if df.empty:
+                output.console_log(f"Warning: CSV file {csv_path} is empty after cleaning.")
+                return None
+
+            # --- 1. Execution Time (CORRECTED) ---
+            # Timestamps are in milliseconds (ms), not nanoseconds (ns)
+            execution_time_ms = df['Time'].iloc[-1] - df['Time'].iloc[0]
+            # Convert ms to seconds by dividing by 1000.0
+            execution_time_s = execution_time_ms / 1000.0
+
+            # --- 2. CPU Usage ---
+            cpu_usage_cols = [col for col in df.columns if 'CPU_USAGE' in col]
+            overall_avg_cpu_usage = df[cpu_usage_cols].mean().mean() if cpu_usage_cols else 0
+
+            # --- 3. Memory Usage ---
+            avg_memory_usage_bytes = df['USED_MEMORY'].mean()
+            avg_memory_usage_mb = avg_memory_usage_bytes / (1024 * 1024)
+
+            # --- 4. Energy Consumption ---
+            cpu_energy = df['CPU_ENERGY (J)'].iloc[-1] - df['CPU_ENERGY (J)'].iloc[0]
+            
+            run_data = {
+                'execution_time_s': round(execution_time_s, 3),
+                'cpu_usage_percent': round(overall_avg_cpu_usage, 3),
+                'memory_usage_mb': round(avg_memory_usage_mb, 3),
+                'cpu_energy_j': round(cpu_energy, 3)
+            }
+            
+            full_run_details = {**context.execute_run, **run_data}
+            self.all_run_data.append(full_run_details)
+            
+            return run_data
+
+        except (FileNotFoundError, IndexError, KeyError, ValueError) as e:
+            output.console_log(f"❌ An error occurred while processing {csv_path}: {type(e).__name__}: {e}")
+            if 'df' in locals() and not df.empty:
+                output.console_log(f"Available columns are: {list(df.columns)}")
+            return None
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here. This is the ideal place
