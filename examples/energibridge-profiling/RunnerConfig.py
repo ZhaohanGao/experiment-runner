@@ -64,7 +64,7 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        sampling_factor = FactorModel("sampling", [100, 200, 300, 400, 500, 600])
+        sampling_factor = FactorModel("sampling", [1000])
         # sampling_factor = FactorModel("sampling", [100])
         self.run_table_model = RunTableModel(
             factors = [sampling_factor],
@@ -94,27 +94,34 @@ class RunnerConfig:
                 self.experiment_path = context.experiment_path
 
     def start_measurement(self, context: RunnerContext) -> None:
-        """Perform any activity required for starting measurements."""
-        sampling_interval = context.execute_run['sampling']
+            """Perform any activity required for starting measurements."""
+            sampling_interval = context.execute_run['sampling']
+            
+            # Define the output path for the script's timing file
+            script_output_path = context.run_dir / "execution_time.txt"
 
-        profiler_cmd = f'sudo energibridge \
-                        --interval {sampling_interval} \
-                        --max-execution 20 \
-                        --output {context.run_dir / "energibridge.csv"} \
-                        --summary \
-                        python3 examples/energibridge-profiling/primer.py'
-        
-        energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
-        self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
+            # Define the absolute path to the script being profiled
+            script_to_run_path = self.ROOT_DIR / "bucket_sort.py"
+
+            # MODIFIED: Use the absolute path for bucket_sort.py
+            profiler_cmd = f'sudo energibridge \
+                            --interval {sampling_interval} \
+                            --output {context.run_dir / "energibridge.csv"} \
+                            --summary \
+                            python3 {script_to_run_path} {script_output_path}'
+
+            energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
+            self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
 
     def interact(self, context: RunnerContext) -> None:
-        """Perform any interaction with the running target system here, or block here until the target finishes."""
-        output.console_log("Running program for 20 seconds")
-        time.sleep(20)
+        """Blocks and waits for the subprocess to complete."""
+        output.console_log("Waiting for the sorting process and profiler to complete...")
+        self.profiler.wait()  # This is the correct way to wait.
+        output.console_log("Process finished.")
 
     def stop_measurement(self, context: RunnerContext) -> None:
-        """Perform any activity here required for stopping measurements."""
-        self.profiler.wait()
+        """This is now handled in interact(), so we leave it empty."""
+        pass
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -126,25 +133,19 @@ class RunnerConfig:
         Parse and process measurement data to calculate key performance metrics.
         """
         try:
-            csv_path = context.run_dir / "energibridge.csv"
-            
-            if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
-                output.console_log(f"Warning: energibridge.csv is missing or empty in {context.run_dir}")
-                return None
+            # --- 1. Execution Time (Directly from script's output file) ---
+            script_output_path = context.run_dir / "execution_time.txt"
+            with open(script_output_path, 'r') as f:
+                execution_time_s = float(f.read().strip())
 
+            # ... (rest of the function for CPU, memory, energy remains the same) ...
+            
+            csv_path = context.run_dir / "energibridge.csv"
+            # ... (read energibridge.csv for other metrics) ...
             df = pd.read_csv(csv_path, on_bad_lines='skip')
             df.dropna(inplace=True)
 
-            if df.empty:
-                output.console_log(f"Warning: CSV file {csv_path} is empty after cleaning.")
-                return None
-
-            # --- 1. Execution Time (CORRECTED) ---
-            # Timestamps are in milliseconds (ms), not nanoseconds (ns)
-            execution_time_ms = df['Time'].iloc[-1] - df['Time'].iloc[0]
-            # Convert ms to seconds by dividing by 1000.0
-            execution_time_s = execution_time_ms / 1000.0
-
+            # ... (calculate cpu_usage, memory_usage, cpu_energy from df) ...
             # --- 2. CPU Usage ---
             cpu_usage_cols = [col for col in df.columns if 'CPU_USAGE' in col]
             overall_avg_cpu_usage = df[cpu_usage_cols].mean().mean() if cpu_usage_cols else 0
@@ -155,9 +156,9 @@ class RunnerConfig:
 
             # --- 4. Energy Consumption ---
             cpu_energy = df['CPU_ENERGY (J)'].iloc[-1] - df['CPU_ENERGY (J)'].iloc[0]
-            
+
             run_data = {
-                'execution_time_s': round(execution_time_s, 3),
+                'execution_time_s': round(execution_time_s, 3), # Using the more direct value
                 'cpu_usage_percent': round(overall_avg_cpu_usage, 3),
                 'memory_usage_mb': round(avg_memory_usage_mb, 3),
                 'cpu_energy_j': round(cpu_energy, 3)
@@ -167,6 +168,10 @@ class RunnerConfig:
             self.all_run_data.append(full_run_details)
             
             return run_data
+
+        except Exception as e:
+            output.console_log(f"❌ An error occurred while processing data: {type(e).__name__}: {e}")
+            return None
 
         except (FileNotFoundError, IndexError, KeyError, ValueError) as e:
             output.console_log(f"❌ An error occurred while processing {csv_path}: {type(e).__name__}: {e}")
