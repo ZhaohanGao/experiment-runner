@@ -52,18 +52,16 @@ class RunnerConfig:
         output.console_log("Custom config loaded")
 
     def create_run_table_model(self) -> RunTableModel:
-        """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
-        representing each run performed"""
         factor1 = FactorModel("fib_type", ['iter', 'mem', 'rec'])
         factor2 = FactorModel("problem_size", [10, 35, 40, 5000, 10000])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
             exclude_combinations=[
-                {factor2: [10]},   # all runs having treatment "10" will be excluded
-                {factor1: ['rec'], factor2: [5000, 10000]},
-                {factor1: ['mem', 'iter'], factor2: [35, 40]},  # all runs having the combination ("iter", 30) will be excluded
+                {factor2: [10]},   # exclude all runs with treatment "10"
+                {factor1: ['rec'], factor2: [5000, 10000]}, # exclude ('rec', 5000) and ('rec', 10000)
             ],
-            repetitions = 10,
+            shuffle=True,
+            repetitions=10,
             data_columns=["energy", "runtime", "memory"]
         )
         return self.run_table_model
@@ -85,12 +83,13 @@ class RunnerConfig:
         pass       
 
     def start_measurement(self, context: RunnerContext) -> None:
-        """Perform any activity required for starting measurements."""
         fib_type = context.execute_run["fib_type"]
         problem_size = context.execute_run["problem_size"]
-        
-        self.profiler = EnergiBridge(target_program=f"python examples/hello-world-fibonacci/fibonacci_{fib_type}.py {problem_size}",
-                                     out_file=context.run_dir / "energibridge.csv")
+
+        self.profiler = EnergiBridge(
+            target_program=f"python examples/hello-world-fibonacci/fibonacci_{fib_type}.py {problem_size}",
+            out_file=context.run_dir / "energibridge.csv"
+        )
 
         self.profiler.start()
 
@@ -108,16 +107,16 @@ class RunnerConfig:
         pass
 
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
-        """Parse and process any measurement data here.
-        You can also store the raw measurement data under `context.run_dir`
-        Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
-        
-        eb_log, eb_summary = self.profiler.parse_log(self.profiler.logfile, 
-                                                     self.profiler.summary_logfile)
-        
-        return {"energy": list(eb_log["PACKAGE_ENERGY (J)"].values())[-1] - list(eb_log["PACKAGE_ENERGY (J)"].values())[0], 
-                "runtime": eb_summary["runtime_seconds"], 
-                "memory": max(eb_log["USED_MEMORY"].values())}
+        eb_log, eb_summary = self.profiler.parse_log(
+            self.profiler.logfile, 
+            self.profiler.summary_logfile
+        )
+
+        return {
+            "energy": list(eb_log["PACKAGE_ENERGY (J)"].values())[-1] - list(eb_log["PACKAGE_ENERGY (J)"].values())[0],
+            "runtime": eb_summary["runtime_seconds"],
+            "memory": max(eb_log["USED_MEMORY"].values())
+        }
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

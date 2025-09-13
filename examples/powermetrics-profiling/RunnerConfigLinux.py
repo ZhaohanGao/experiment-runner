@@ -68,7 +68,7 @@ class RunnerConfig:
         perf_log_path = context.run_dir / "perf_output.txt"
         
         # We will pin the command to CPU core 7
-        cpu_to_use = '7'
+        cpu_to_use = '0-7'
         
         # taskset -c <core> your_command...
         workload_command = [

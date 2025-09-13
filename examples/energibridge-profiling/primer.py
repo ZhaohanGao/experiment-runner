@@ -1,23 +1,37 @@
-import os
-import struct
+# bucket_sort.py
+import random
 
-def is_prime(p):
-    if p==0 or p==1:
-        return False
+def bucket_sort(arr: list) -> list:
+    """
+    Sorts a list using the Bucket Sort algorithm.
+    """
+    if not arr:
+        return []
 
-    for i in range(2, (p//2)+1, 1):
-        if p % i == 0:
-            return False
-    return True
+    max_val, min_val = max(arr), min(arr)
+    if max_val == min_val:
+        return arr
 
-if __name__ == '__main__':
-    fd = os.open("/dev/urandom", os.O_RDONLY)
+    bucket_count = len(arr)
+    buckets = [[] for _ in range(bucket_count)]
+    val_range = max_val - min_val
 
-    while True:
-        p = struct.unpack("@Q", os.read(fd, 8))[0]
-        print("Testing %lu" % p)
-        if is_prime(p):
-            print(" [*] prime")
-        else:
-            print(" [*] not prime")
-    os.close(fd)
+    for num in arr:
+        index = int((num - min_val) / val_range * (bucket_count - 1))
+        buckets[index].append(num)
+
+    sorted_arr = []
+    for bucket in buckets:
+        sorted_arr.extend(sorted(bucket))
+    return sorted_arr
+
+
+if __name__ == "__main__":
+    data_size = 250
+    num_executions = 300000
+
+    test_data = [random.randint(0, 10000) for _ in range(data_size)]
+    
+    for _ in range(num_executions):
+        data_to_sort = test_data.copy()
+        bucket_sort(data_to_sort)
