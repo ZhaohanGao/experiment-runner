@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     data_size = 10000
 
-    num_executions = 10
+    num_executions = 5
 
     test_data = [random.randint(0, 10000) for _ in range(data_size)]
     

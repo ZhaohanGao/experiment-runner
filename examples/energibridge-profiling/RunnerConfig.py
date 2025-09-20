@@ -101,7 +101,7 @@ class RunnerConfig:
             script_output_path = context.run_dir / "execution_time.txt"
 
             # Define the absolute path to the script being profiled
-            script_to_run_path = self.ROOT_DIR / "bucket_sort.py"
+            script_to_run_path = self.ROOT_DIR / "bubble_sort.py"
 
             # MODIFIED: Use the absolute path for bucket_sort.py
             profiler_cmd = f'sudo energibridge \
