@@ -29,7 +29,7 @@ class RunnerConfig:
     # SCRIPT_TO_RUN: str = "quick_sort.py" # <-- Example for the next run
 
     # Define how many times to repeat the experiment for the script above.
-    REPETITIONS: int = 5
+    REPETITIONS: int = 2
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name: str = "" # This will be set dynamically below
@@ -86,7 +86,7 @@ class RunnerConfig:
                             --interval {sampling_interval} \
                             --output {context.run_dir / "energibridge.csv"} \
                             --summary \
-                            python3 {script_to_run_path} {script_output_path}'
+                            /home/pluxbox/Desktop/experiment-runner/venv/bin/python {script_to_run_path} {script_output_path}'
 
             energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
             self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)

@@ -5,8 +5,10 @@ import os
 
 # Add all the python scripts you want to test to this list.
 SCRIPTS_TO_RUN = [
-    "bubble_sort.py",
-    "bucket_sort.py"
+    # "original/dijkstra_origin.py",
+    # "single_guideline/dijkstra_code.py",
+    # "single_guideline/dijkstra_multi.py",
+    "single_guideline/dijkstra_native.py"
 ]
 
 # ==============================================================================================
