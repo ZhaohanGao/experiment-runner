@@ -29,7 +29,7 @@ class RunnerConfig:
     # SCRIPT_TO_RUN: str = "quick_sort.py" # <-- Example for the next run
 
     # Define how many times to repeat the experiment for the script above.
-    REPETITIONS: int = 2
+    REPETITIONS: int = 10
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name: str = "" # This will be set dynamically below

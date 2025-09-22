@@ -21,5 +21,7 @@ python
 Session.vim
 Vagrantfile
 venv
+run_*/
+metadata.json
 
 __MACOSX/
