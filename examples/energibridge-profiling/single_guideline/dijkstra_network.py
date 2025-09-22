@@ -2,14 +2,15 @@ import heapq
 import time
 import sys
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import gzip
+import json
 
 def dijkstra(graph: dict, start: str, end: str) -> int:
     """Return the cost of the shortest path between vertices start and end."""
     heap = [(0, start)]  # (cost from start node, current node)
     visited = set()
     while heap:
-        cost, u = heapq.heappop(heap)
+        (cost, u) = heapq.heappop(heap)
         if u in visited:
             continue
         visited.add(u)
@@ -71,12 +72,33 @@ COMPLEX_GRAPH = {
     'Perth': [('Sydney', 35), ('Singapore', 41), ('Mumbai', 70), ('Johannesburg', 85)],
 }
 
-def _worker(iterations: int, cases, graph):
-    """Run a batch of Dijkstra computations in a single thread."""
-    # No shared state -> fewer dependencies across threads (Guideline G9).
-    for _ in range(iterations):
-        for start_node, end_node in cases:
-            dijkstra(graph, start_node, end_node)
+def _write_text_auto(path: str, text: str) -> None:
+    """G22: compress if path endswith .gz or COMPRESS_OUTPUT=1."""
+    compress = path.endswith(".gz") or os.getenv("COMPRESS_OUTPUT") == "1"
+    if compress:
+        # mtime=0 -> deterministic gzip for better cache hits when transferring
+        with gzip.open(path, "wt", compresslevel=6, mtime=0, encoding="utf-8") as f:
+            f.write(text)
+    else:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+def _export_payload_if_requested(graph: dict, test_cases, num_exec: int, out_path_env: str = "EXPORT_PAYLOAD_PATH") -> None:
+    """
+    G22+G23: emit a compact, reproducible, compressed payload (gzipped JSON)
+    for remote/cloud execution to avoid re-sending bulky code and minimize bandwidth.
+    """
+    export_path = os.getenv(out_path_env)
+    if not export_path:
+        return
+    payload = {
+        "graph": graph,              # small enough; if huge, consider adjacency-only
+        "test_cases": test_cases,
+        "num_executions": num_exec,
+        "version": 1,
+    }
+    with gzip.open(export_path, "wt", compresslevel=6, mtime=0, encoding="utf-8") as f:
+        json.dump(payload, f, separators=(",", ":"))  # compact JSON
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -84,36 +106,27 @@ if __name__ == "__main__":
         sys.exit(1)
 
     output_file_path = sys.argv[1]
-
-    # ----- Configuration -----
     num_executions = 100000
     test_graph = COMPLEX_GRAPH
+
     test_cases = [
         ('BuenosAires', 'Beijing'),
         ('Perth', 'Stockholm'),
-        ('Lagos', 'SanFrancisco'),
+        ('Lagos', 'SanFrancisco')
     ]
 
-    # Warm-up (JIT-like effects for interpreters, CPU caches) – outside timing.
-    for start_node, end_node in test_cases:
-        dijkstra(test_graph, start_node, end_node)
+    # Optional export for cloud/offload (G23) using compressed payload (G22)
+    _export_payload_if_requested(test_graph, test_cases, num_executions)
 
-    # ----- Multithreaded run -----
-    workers = max(1, min(os.cpu_count() or 1, 8))  # cap if desired to reduce thermal throttling
-    # Split iterations across workers as evenly as possible (dynamic queue handles any skew).
-    base, extra = divmod(num_executions, workers)
-    batch_sizes = [base + (1 if i < extra else 0) for i in range(workers)]
+    # Warm-up to avoid measuring interpreter cold start
+    for start_node, end_node in test_cases:
+        _ = dijkstra(test_graph, start_node, end_node)
 
     start_time = time.time()
-
-    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="dijk") as ex:
-        futures = [ex.submit(_worker, batch, test_cases, test_graph) for batch in batch_sizes]
-        for fut in as_completed(futures):
-            # Exceptions are raised here if any; otherwise threads sleep/exit when done (G13).
-            fut.result()
-
+    for _ in range(num_executions):
+        for start_node, end_node in test_cases:
+            _ = dijkstra(test_graph, start_node, end_node)
     end_time = time.time()
 
     duration = end_time - start_time
-    with open(output_file_path, "w") as f:
-        f.write(str(duration))
+    _write_text_auto(output_file_path, str(duration))

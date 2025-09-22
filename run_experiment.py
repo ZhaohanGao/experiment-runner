@@ -8,7 +8,19 @@ SCRIPTS_TO_RUN = [
     # "original/dijkstra_origin.py",
     # "single_guideline/dijkstra_code.py",
     # "single_guideline/dijkstra_multi.py",
-    "single_guideline/dijkstra_native.py"
+    # "single_guideline/dijkstra_native.py",
+    # "single_guideline/dijkstra_function.py",
+    # "single_guideline/dijkstra_object.py",
+    # "single_guideline/dijkstra_network.py",
+    # "single_guideline/dijkstra_other.py",
+    # "multiple_guideline/dijkstra_mixed.py",
+    # "original/floyd_origin.py",
+    # "single_guideline/floyd_code.py",
+    # "single_guideline/floyd_multi.py",
+    # "single_guideline/floyd_native.py"
+    # "single_guideline/floyd_object.py",
+    # "single_guideline/floyd_other.py"
+    "multiple_guideline/floyd_mixed.py",
 ]
 
 # ==============================================================================================
