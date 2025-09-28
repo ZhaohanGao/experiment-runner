@@ -1,4 +1,4 @@
-# edit_distance_combo.py
+# Guideline used: Code Optimization (G6, G28) • Native Code (G15, G17) • Function Calls (G19)
 import os, sys, time, random
 try:
     from numba import njit

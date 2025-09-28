@@ -1,5 +1,4 @@
-# floyd_warshall_all_but_net_mt.py
-# Usage: python floyd_warshall_all_but_net_mt.py /tmp/out.txt
+# Guideline used: Code Optimization (G1, G3, G4, G6, G7, G28) • Native Code / HPC (G15, G17, G24) • Function Calls (G19)
 import os
 import sys
 import time

@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     # Tunables via environment variables
     n = int(os.getenv("FIB_N", "200000"))
-    runs = int(os.getenv("FIB_RUNS", "3"))
+    runs = int(os.getenv("FIB_RUNS", "100"))
     backend = os.getenv("FIB_BACKEND", "iter").lower()  # iter_yield|iter|recursive|recursive_cached|memo|binet|matrix
 
     # Gentle reminders for dangerous combos (no optimization, just sanity)

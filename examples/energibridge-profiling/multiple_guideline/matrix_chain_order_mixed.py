@@ -1,4 +1,4 @@
-# mcm_chain_combo.py
+# Guideline used: Code Optimization (G1, G28) • Native Code (G15, G17)
 import os, sys, time, random
 from typing import List, Tuple
 

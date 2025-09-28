@@ -1,4 +1,4 @@
-# knapsack_experiment_combo.py
+# Guideline used: Code Optimization (G1, G3) • Native Code (G15, G17) • Object Orientation (G20)
 import os, sys, time, random
 try:
     from numba import njit

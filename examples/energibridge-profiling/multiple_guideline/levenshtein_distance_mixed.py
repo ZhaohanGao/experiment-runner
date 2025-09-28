@@ -1,5 +1,4 @@
-# levenshtein_combo.py
-# Usage: python levenshtein_combo.py /tmp/out.txt
+# Guideline used: Code Optimization (G28) • Native Code (G15, G17)
 import os, sys, time, random
 import numpy as np
 from numba import njit

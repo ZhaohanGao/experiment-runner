@@ -1,5 +1,5 @@
-# fib_combo.py
-# Usage: python fib_combo.py /tmp/out.txt
+# Guideline used: Code Optimization (G6, G28) • Native Code (G15, G17) • Function Calls (G19)
+
 import os, sys, time
 try:
     import gmpy2
@@ -32,7 +32,7 @@ if __name__=="__main__":
     if len(sys.argv)<2: print("Error: Provide output file path"); sys.exit(1)
     out=sys.argv[1]
     n=int(os.getenv("FIB_N","200000"))
-    runs=int(os.getenv("FIB_RUNS","3"))
+    runs=int(os.getenv("FIB_RUNS","100"))
     _=fib_doubling(min(n,200000))  # warmup
     t0=time.perf_counter()
     for _ in range(runs):

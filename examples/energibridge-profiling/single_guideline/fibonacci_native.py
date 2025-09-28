@@ -61,7 +61,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2: print("Error: Provide output path"); sys.exit(1)
     out = sys.argv[1]
     n = int(os.getenv("FIB_N","200000"))
-    runs = int(os.getenv("FIB_RUNS","3"))
+    runs = int(os.getenv("FIB_RUNS","100"))
     backend = os.getenv("FIB_BACKEND","doubling")
 
     # Warmup

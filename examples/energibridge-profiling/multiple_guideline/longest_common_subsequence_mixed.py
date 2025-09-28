@@ -1,4 +1,4 @@
-# lcs_combo.py
+# Guideline used: Code Optimization (G1, G7) • Native Code (G15)
 import os, sys, time, random
 try:
     from numba import njit

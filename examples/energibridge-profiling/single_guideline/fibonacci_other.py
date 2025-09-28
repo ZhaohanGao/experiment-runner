@@ -26,7 +26,7 @@ if __name__=="__main__":
     if len(sys.argv)<2: print("Error: Provide output file path"); sys.exit(1)
     out=sys.argv[1]
     n=int(os.getenv("FIB_N","200000"))
-    runs=int(os.getenv("FIB_RUNS","3"))
+    runs=int(os.getenv("FIB_RUNS","100"))
     backend=os.getenv("FIB_BACKEND","matrix").lower()
     if backend!="matrix":
         print("fib_other.py supports FIB_BACKEND=matrix only."); open(out,"w").write("0.0"); sys.exit(0)

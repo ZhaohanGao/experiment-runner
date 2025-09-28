@@ -2,9 +2,8 @@ import heapq
 import time
 import sys
 
-# -----------------------------
-# Energy-efficient Dijkstra
-# -----------------------------
+# Guideline used: Code Optimization (G1, G6, G28) • Function Calls (G18, G19)
+
 def dijkstra_cost(graph: dict, start: str, end: str) -> int:
     """Return the cost of the shortest path between vertices start and end."""
     # Local bindings reduce attribute lookups in tight loops (G19)

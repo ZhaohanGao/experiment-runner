@@ -1,5 +1,4 @@
-# floyd_warshall_combo.py
-# Usage: python floyd_warshall_combo.py /tmp/out.txt
+# Guideline used: Code Optimization (G28) • Native Code (G15, G17)
 import os, sys, time, random
 
 NUMBA_OK = True
