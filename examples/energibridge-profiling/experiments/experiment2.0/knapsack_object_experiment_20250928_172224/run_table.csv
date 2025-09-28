@@ -1,0 +1,11 @@
+__run_id,__done,repetition,sampling,execution_time_ms,cpu_usage_percent,memory_usage_mb,cpu_energy_j
+run_0_repetition_0,DONE,1,1000,588.941,5.497,2792.737,8.727
+run_1_repetition_0,DONE,2,1000,595.651,5.517,2785.59,8.068
+run_2_repetition_0,DONE,3,1000,601.016,5.492,2786.591,8.607
+run_3_repetition_0,DONE,4,1000,601.952,5.997,2779.486,9.421
+run_4_repetition_0,DONE,5,1000,588.935,2.993,2778.132,8.734
+run_5_repetition_0,DONE,6,1000,588.944,5.561,2774.392,8.147
+run_6_repetition_0,DONE,7,1000,596.164,5.884,2768.048,8.937
+run_7_repetition_0,DONE,8,1000,588.377,5.726,2765.31,8.298
+run_8_repetition_0,DONE,9,1000,600.068,5.792,2769.37,8.368
+run_9_repetition_0,DONE,10,1000,594.024,5.467,2775.716,8.107
