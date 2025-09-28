@@ -29,7 +29,7 @@ class RunnerConfig:
     # SCRIPT_TO_RUN: str = "quick_sort.py" # <-- Example for the next run
 
     # Define how many times to repeat the experiment for the script above.
-    REPETITIONS: int = 2
+    REPETITIONS: int = 10
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name: str = "" # This will be set dynamically below
@@ -68,7 +68,7 @@ class RunnerConfig:
 
         self.run_table_model = RunTableModel(
             factors=[repetition_factor, sampling_factor],
-            data_columns=['execution_time_s', 'cpu_usage_percent', 'memory_usage_mb', 'cpu_energy_j']
+            data_columns=['execution_time_ms', 'cpu_usage_percent', 'memory_usage_mb', 'cpu_energy_j']
         )
         return self.run_table_model
 
@@ -135,7 +135,7 @@ class RunnerConfig:
         try:
             script_output_path = context.run_dir / "execution_time.txt"
             with open(script_output_path, 'r') as f:
-                execution_time_s = float(f.read().strip())
+                execution_time_ms = float(f.read().strip()) * 1000.0
 
             csv_path = context.run_dir / "energibridge.csv"
             df = pd.read_csv(csv_path, on_bad_lines='skip')
@@ -148,7 +148,7 @@ class RunnerConfig:
             cpu_energy = df['CPU_ENERGY (J)'].iloc[-1] - df['CPU_ENERGY (J)'].iloc[0]
 
             run_data = {
-                'execution_time_s': round(execution_time_s, 3),
+                'execution_time_ms': round(execution_time_ms, 3),
                 'cpu_usage_percent': round(overall_avg_cpu_usage, 3),
                 'memory_usage_mb': round(avg_memory_usage_mb, 3),
                 'cpu_energy_j': round(cpu_energy, 3)
