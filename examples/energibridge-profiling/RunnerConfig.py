@@ -64,7 +64,7 @@ class RunnerConfig:
         """Create and return the run_table model here."""
         # MODIFICATION 3: Factors are now simpler as we are only running one script.
         repetition_factor = FactorModel("repetition", list(range(1, self.REPETITIONS + 1)))
-        sampling_factor = FactorModel("sampling", [1000])
+        sampling_factor = FactorModel("sampling", [200])
 
         self.run_table_model = RunTableModel(
             factors=[repetition_factor, sampling_factor],
