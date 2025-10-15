@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 # Path that holds all experiment folders
-ROOT = Path("examples/energibridge-profiling/experiments/experiment2.0")
+ROOT = Path("examples/energibridge-profiling/experiments/experiment3.0")
 OUTPUT_FILE = ROOT / "all_run_tables_combined.csv"
 
 all_frames = []
